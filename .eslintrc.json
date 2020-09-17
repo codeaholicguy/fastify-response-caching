@@ -1,0 +1,12 @@
+{
+  "env": {
+    "node": true
+  },
+  "extends": ["standard"],
+  "rules": {
+    "comma-dangle": ["error", "always-multiline"],
+    "eqeqeq": "error",
+    "no-extra-semi": "error",
+    "object-curly-spacing": ["error", "never"]
+  }
+}

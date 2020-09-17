@@ -78,7 +78,7 @@ const createOnRequestHandler = ({
 const createOnSendHandler = ({ttl, additionalCondition: {headers}}) => async (
   req,
   res,
-  payload
+  payload,
 ) => {
   if (!isCacheableRequest(req)) {
     return
@@ -92,14 +92,14 @@ const createOnSendHandler = ({ttl, additionalCondition: {headers}}) => async (
       statusCode: res.statusCode,
       payload,
     }),
-    ttl
+    ttl,
   )
 }
 
 const responseCachingPlugin = (
   instance,
   {ttl = 1000, additionalCondition = {}},
-  next
+  next,
 ) => {
   const headers = additionalCondition.headers || []
   const opts = {ttl, additionalCondition: {headers}}
