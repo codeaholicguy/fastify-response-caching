@@ -1,0 +1,35 @@
+{
+  "name": "fastify-response-caching",
+  "version": "0.0.1",
+  "description": "A Fastify plugin for caching the response",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap *.test.js",
+    "test-ci": "tap --cov *.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/fastify-response-caching.git"
+  },
+  "keywords": [
+    "fastify",
+    "fastify-response-caching",
+    "response-caching"
+  ],
+  "author": "codeaholicguy <hoangnn93@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/codeaholicguy/fastify-response-caching/issues"
+  },
+  "homepage": "https://github.com/codeaholicguy/fastify-response-caching#readme",
+  "dependencies": {
+    "bluebird": "^3.7.2",
+    "fastify-plugin": "^2.3.4",
+    "keyv": "^4.0.2"
+  },
+  "devDependencies": {
+    "axios": "^0.20.0",
+    "fastify": "^3.4.1",
+    "tap": "^14.10.8"
+  }
+}
