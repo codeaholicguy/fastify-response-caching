@@ -37,6 +37,5 @@ jobs:
           git config --global user.name "codeaholicguy"
           npm version ${{ steps.vars.outputs.release_version }}
           npm publish
-          git push
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
