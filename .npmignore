@@ -1,0 +1,5 @@
+.editorconfig
+.prettierrc
+**/*.test.js
+.eslintrc.json
+.github
