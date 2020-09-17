@@ -33,7 +33,7 @@ jobs:
         run: echo ::set-output name=release_version::${GITHUB_REF/refs\/tags\//}
       - run: npm ci
       - run: |
-          echo ${{ steps.vars.outputs.release_version }}
+          npm version ${{ steps.vars.outputs.release_version }}
           npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
