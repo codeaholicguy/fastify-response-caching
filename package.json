@@ -9,7 +9,9 @@
     }
   },
   "lint-staged": {
-    "**/*.js": ["eslint"]
+    "**/*.js": [
+      "eslint"
+    ]
   },
   "scripts": {
     "test": "tap --cov *.test.js",
@@ -33,7 +35,6 @@
   },
   "homepage": "https://github.com/codeaholicguy/fastify-response-caching#readme",
   "dependencies": {
-    "bluebird": "^3.7.2",
     "fastify-plugin": "^2.3.4",
     "keyv": "^4.0.2"
   },

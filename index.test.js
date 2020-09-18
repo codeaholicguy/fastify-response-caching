@@ -4,9 +4,12 @@ const test = require('tap').test
 
 const axios = require('axios')
 const fastify = require('fastify')
-const BPromise = require('bluebird')
 
 const plugin = require('./index.js')
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 test('should decorate cache to fastify instance', (t) => {
   t.plan(3)
@@ -30,7 +33,7 @@ test('should cache the cacheable request', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/cache`
-    const [response1, response2] = await BPromise.all([
+    const [response1, response2] = await Promise.all([
       axios.get(address),
       axios.get(address),
     ])
@@ -55,7 +58,7 @@ test('should not cache the uncacheable request', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/no-cache`
-    const [response1, response2] = await BPromise.all([
+    const [response1, response2] = await Promise.all([
       axios.post(address, {}),
       axios.post(address, {}),
     ])
@@ -80,11 +83,11 @@ test('should apply ttl config', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/ttl`
-    const [response1, response2] = await BPromise.all([
+    const [response1, response2] = await Promise.all([
       axios.get(address),
       axios.get(address),
     ])
-    await BPromise.delay(3000)
+    await delay(3000)
     const response3 = await axios.get(address)
     t.is(response1.status, 200)
     t.is(response2.status, 200)
@@ -114,7 +117,7 @@ test('should apply additionalCondition config', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/headers`
-    const [response1, response2, response3, response4] = await BPromise.all([
+    const [response1, response2, response3, response4] = await Promise.all([
       axios.get(address, {
         headers: {'x-should-applied': 'yes'},
       }),
@@ -146,7 +149,7 @@ test('should waiting for cache if multiple same request come in', (t) => {
   const instance = fastify()
   instance.register(plugin, {ttl: 5000})
   instance.get('/waiting', async (req, res) => {
-    await BPromise.delay(3000)
+    await delay(3000)
     res.send({hello: 'world'})
   })
   instance.listen(0, async (err) => {
@@ -154,7 +157,7 @@ test('should waiting for cache if multiple same request come in', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/waiting`
-    const [response1, response2] = await BPromise.all([
+    const [response1, response2] = await Promise.all([
       axios.get(address),
       axios.get(address),
     ])
@@ -172,7 +175,7 @@ test('should not waiting for cache due to timeout', (t) => {
   const instance = fastify()
   instance.register(plugin)
   instance.get('/abort', async (req, res) => {
-    await BPromise.delay(2000)
+    await delay(2000)
     res.send({hello: 'world'})
   })
   instance.listen(0, async (err) => {
@@ -180,7 +183,7 @@ test('should not waiting for cache due to timeout', (t) => {
     instance.server.unref()
     const portNum = instance.server.address().port
     const address = `http://127.0.0.1:${portNum}/abort`
-    const [response1, response2] = await BPromise.all([
+    const [response1, response2] = await Promise.all([
       axios.get(address),
       axios.get(address),
     ])

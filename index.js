@@ -2,11 +2,10 @@
 
 const fp = require('fastify-plugin')
 const Keyv = require('keyv')
-const BPromise = require('bluebird')
 const crypto = require('crypto')
+const {EventEmitter} = require('events')
 
 const CACHEABLE_METHODS = ['GET']
-const INTERVAL = 200
 const X_RESPONSE_CACHE = 'x-response-cache'
 const X_RESPONSE_CACHE_HIT = 'hit'
 const X_RESPONSE_CACHE_MISS = 'miss'
@@ -27,23 +26,6 @@ function buildCacheKey(req, {headers}) {
   return key
 }
 
-async function waitForCacheFulfilled(cache, key, timeout) {
-  let cachedString = await cache.get(key)
-  let waitedFor = 0
-
-  while (!cachedString) {
-    await BPromise.delay(INTERVAL)
-    cachedString = await cache.get(key)
-
-    waitedFor += INTERVAL
-    if (!cachedString && waitedFor > timeout) {
-      return
-    }
-  }
-
-  return cachedString
-}
-
 function createOnRequestHandler({ttl, additionalCondition: {headers}}) {
   return async function handler(req, res) {
     if (!isCacheableRequest(req)) {
@@ -51,12 +33,34 @@ function createOnRequestHandler({ttl, additionalCondition: {headers}}) {
     }
 
     const cache = this.responseCache
+    const cacheNotifier = this.responseCacheNotifier
     const key = buildCacheKey(req, {headers})
     const requestKey = `${key}__requested`
     const isRequestExisted = await cache.get(requestKey)
 
+    async function waitForCacheFulfilled(key) {
+      return new Promise((resolve) => {
+        cache.get(key).then((cachedString) => {
+          if (cachedString) {
+            resolve(cachedString)
+          }
+        })
+
+        const handler = async () => {
+          const cachedString = await cache.get(key)
+
+          resolve(cachedString)
+        }
+
+        cacheNotifier.once(key, handler)
+
+        setTimeout(() => cacheNotifier.removeListener(key, handler), ttl)
+        setTimeout(() => resolve(), ttl)
+      })
+    }
+
     if (isRequestExisted) {
-      const cachedString = await waitForCacheFulfilled(cache, key, ttl)
+      const cachedString = await waitForCacheFulfilled(key)
 
       if (cachedString) {
         const cached = JSON.parse(cachedString)
@@ -80,6 +84,7 @@ function createOnSendHandler({ttl, additionalCondition: {headers}}) {
     }
 
     const cache = this.responseCache
+    const cacheNotifier = this.responseCacheNotifier
     const key = buildCacheKey(req, {headers})
 
     await cache.set(
@@ -90,6 +95,7 @@ function createOnSendHandler({ttl, additionalCondition: {headers}}) {
       }),
       ttl,
     )
+    cacheNotifier.emit(key)
   }
 }
 
@@ -101,8 +107,10 @@ const responseCachingPlugin = (
   const headers = additionalCondition.headers || []
   const opts = {ttl, additionalCondition: {headers}}
   const responseCache = new Keyv()
+  const responseCacheNotifier = new EventEmitter()
 
   instance.decorate('responseCache', responseCache)
+  instance.decorate('responseCacheNotifier', responseCacheNotifier)
   instance.addHook('onRequest', createOnRequestHandler(opts))
   instance.addHook('onSend', createOnSendHandler(opts))
 
