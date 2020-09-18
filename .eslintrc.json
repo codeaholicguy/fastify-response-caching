@@ -7,6 +7,10 @@
     "comma-dangle": ["error", "always-multiline"],
     "eqeqeq": "error",
     "no-extra-semi": "error",
-    "object-curly-spacing": ["error", "never"]
+    "object-curly-spacing": ["error", "never"],
+    "space-before-function-paren": [
+      "error",
+      {"anonymous": "always", "named": "never", "asyncArrow": "always"}
+    ]
   }
 }

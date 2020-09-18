@@ -5,19 +5,17 @@ const Keyv = require('keyv')
 const BPromise = require('bluebird')
 const crypto = require('crypto')
 
-const cache = new Keyv()
-
 const CACHEABLE_METHODS = ['GET']
 const INTERVAL = 200
 const X_RESPONSE_CACHE = 'x-response-cache'
 const X_RESPONSE_CACHE_HIT = 'hit'
 const X_RESPONSE_CACHE_MISS = 'miss'
 
-const isCacheableRequest = (req) => {
+function isCacheableRequest(req) {
   return CACHEABLE_METHODS.includes(req.raw.method)
 }
 
-const buildCacheKey = (req, {headers}) => {
+function buildCacheKey(req, {headers}) {
   const {url, headers: requestHeaders} = req.raw
   const additionalCondition = headers.reduce((acc, header) => {
     return `${acc}__${header}:${requestHeaders[header] || ''}`
@@ -29,7 +27,7 @@ const buildCacheKey = (req, {headers}) => {
   return key
 }
 
-const waitForCacheFulfilled = async (key, timeout) => {
+async function waitForCacheFulfilled(cache, key, timeout) {
   let cachedString = await cache.get(key)
   let waitedFor = 0
 
@@ -46,54 +44,53 @@ const waitForCacheFulfilled = async (key, timeout) => {
   return cachedString
 }
 
-const createOnRequestHandler = ({
-  ttl,
-  additionalCondition: {headers},
-}) => async (req, res) => {
-  if (!isCacheableRequest(req)) {
-    return
-  }
+function createOnRequestHandler({ttl, additionalCondition: {headers}}) {
+  return async function handler(req, res) {
+    if (!isCacheableRequest(req)) {
+      return
+    }
 
-  const key = buildCacheKey(req, {headers})
-  const requestKey = `${key}__requested`
-  const isRequestExisted = await cache.get(requestKey)
+    const cache = this.responseCache
+    const key = buildCacheKey(req, {headers})
+    const requestKey = `${key}__requested`
+    const isRequestExisted = await cache.get(requestKey)
 
-  if (isRequestExisted) {
-    const cachedString = await waitForCacheFulfilled(key, ttl)
+    if (isRequestExisted) {
+      const cachedString = await waitForCacheFulfilled(cache, key, ttl)
 
-    if (cachedString) {
-      const cached = JSON.parse(cachedString)
-      res.header(X_RESPONSE_CACHE, X_RESPONSE_CACHE_HIT)
+      if (cachedString) {
+        const cached = JSON.parse(cachedString)
+        res.header(X_RESPONSE_CACHE, X_RESPONSE_CACHE_HIT)
 
-      return res.code(cached.statusCode).send(cached.payload)
+        return res.code(cached.statusCode).send(cached.payload)
+      } else {
+        res.header(X_RESPONSE_CACHE, X_RESPONSE_CACHE_MISS)
+      }
     } else {
+      await cache.set(requestKey, 'cached', ttl)
       res.header(X_RESPONSE_CACHE, X_RESPONSE_CACHE_MISS)
     }
-  } else {
-    await cache.set(requestKey, 'cached', ttl)
-    res.header(X_RESPONSE_CACHE, X_RESPONSE_CACHE_MISS)
   }
 }
 
-const createOnSendHandler = ({ttl, additionalCondition: {headers}}) => async (
-  req,
-  res,
-  payload,
-) => {
-  if (!isCacheableRequest(req)) {
-    return
+function createOnSendHandler({ttl, additionalCondition: {headers}}) {
+  return async function handler(req, res, payload) {
+    if (!isCacheableRequest(req)) {
+      return
+    }
+
+    const cache = this.responseCache
+    const key = buildCacheKey(req, {headers})
+
+    await cache.set(
+      key,
+      JSON.stringify({
+        statusCode: res.statusCode,
+        payload,
+      }),
+      ttl,
+    )
   }
-
-  const key = buildCacheKey(req, {headers})
-
-  await cache.set(
-    key,
-    JSON.stringify({
-      statusCode: res.statusCode,
-      payload,
-    }),
-    ttl,
-  )
 }
 
 const responseCachingPlugin = (
@@ -103,7 +100,9 @@ const responseCachingPlugin = (
 ) => {
   const headers = additionalCondition.headers || []
   const opts = {ttl, additionalCondition: {headers}}
+  const responseCache = new Keyv()
 
+  instance.decorate('responseCache', responseCache)
   instance.addHook('onRequest', createOnRequestHandler(opts))
   instance.addHook('onSend', createOnSendHandler(opts))
 

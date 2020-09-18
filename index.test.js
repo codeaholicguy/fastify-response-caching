@@ -8,6 +8,16 @@ const BPromise = require('bluebird')
 
 const plugin = require('./index.js')
 
+test('should decorate cache to fastify instance', (t) => {
+  t.plan(3)
+  const instance = fastify()
+  instance.register(plugin).ready(() => {
+    t.ok(instance.responseCache)
+    t.ok(instance.responseCache.set)
+    t.ok(instance.responseCache.get)
+  })
+})
+
 test('should cache the cacheable request', (t) => {
   t.plan(6)
   const instance = fastify()
